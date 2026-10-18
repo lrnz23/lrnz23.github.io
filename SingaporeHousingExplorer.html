@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Singapore Housing Explorer</title>
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--tx:#1d2125;--mu:#666d75;--bd:#dcdad2;--ac:#c8372d;--c2:#1f6feb;--c3:#2a9d5c;--sea:#e6eef3;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181b;--card:#1e2226;--tx:#e8e8e6;--mu:#98a0a8;--bd:#33393f;--ac:#ff6b5e;--c2:#5b9bff;--c3:#4ccf8a;--sea:#1a2229}}
+:root[data-theme="dark"]{--bg:#15181b;--card:#1e2226;--tx:#e8e8e6;--mu:#98a0a8;--bd:#33393f;--ac:#ff6b5e;--c2:#5b9bff;--c3:#4ccf8a;--sea:#1a2229}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--tx);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;padding:14px 14px 150px}
+h1{font-size:19px;margin:0}.sub{color:var(--mu);margin:2px 0 12px;font-size:13px}
+.grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:12px}
+@media(max-width:820px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px}
+.card h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);margin:0 0 8px}
+svg{display:block;width:100%;height:auto}
+.reg{stroke:var(--card);stroke-width:2;cursor:pointer;transition:opacity .15s}
+.reg:hover{opacity:.8}.reg.sel{stroke:var(--tx);stroke-width:3}
+.lbl{font-size:10.5px;fill:#111;pointer-events:none;text-anchor:middle;font-weight:600}
+.big{font-size:26px;font-weight:700}.row{display:flex;gap:14px;flex-wrap:wrap}.row>div{flex:1;min-width:110px}
+.k{color:var(--mu);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+.tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:9px;background:var(--ac);color:#fff;margin-left:6px;vertical-align:middle}
+.leg{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--mu);margin-top:6px}.leg i{flex:1;height:8px;border-radius:4px;background:linear-gradient(90deg,hsl(55 85% 80%),hsl(15 80% 55%),hsl(345 70% 28%))}
+.dot{display:inline-block;width:10px;height:3px;margin-right:4px;vertical-align:middle}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--bd);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));z-index:5}
+.bar .top{display:flex;align-items:center;gap:10px}.yr{font-size:22px;font-weight:700;min-width:60px}
+button{background:var(--tx);color:var(--card);border:0;border-radius:6px;padding:6px 12px;cursor:pointer;font:inherit}
+input[type=range]{flex:1;accent-color:var(--ac);min-width:0}
+.ticks{position:relative;height:30px;margin:4px 0 0 0}
+.note{color:var(--mu);font-size:11.5px;margin-top:8px}
+#ev{min-height:36px;margin-top:6px}
+select{font:inherit;background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:6px;padding:5px 8px;max-width:100%}.tw{max-height:300px;overflow:auto;border:1px solid var(--bd);border-radius:6px}table{border-collapse:collapse;width:100%;font-size:12px}th,td{padding:4px 8px;text-align:right;border-bottom:1px solid var(--bd)}th{position:sticky;top:0;background:var(--card);color:var(--mu)}td:first-child,th:first-child{text-align:left}table.pol td{text-align:left}tr.cur td{background:color-mix(in srgb,var(--ac) 18%,transparent)}tr.est td{color:var(--mu);font-style:italic}.row input[type=range]{width:100%}
+</style></head><body>
+<h1>Singapore Housing Explorer</h1>
+<div class="sub">Drag the timeline, then click a region. Compare resale prices with land prices, population and policy changes.</div>
+<div class="grid">
+ <div class="card"><h2>Resale price by region · <span id="mapyr"></span></h2>
+  <svg id="map" viewBox="20 80 760 300" role="img" aria-label="Map of Singapore regions"><rect x="0" y="0" width="800" height="460" fill="var(--sea)" opacity=".5" rx="8"/></svg>
+  <div class="leg"><span id="lmin"></span><i></i><span id="lmax"></span></div>
+ </div>
+ <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+  <div class="card"><h2>Selected: <span id="rn"></span></h2>
+   <div class="row"><div><div class="k">Est. median resale (S$)</div><div class="big" id="pv"></div></div>
+   <div><div class="k">Index (2009 = 100)</div><div class="big" id="pi"></div></div>
+   <div><div class="k">Population (m)</div><div class="big" id="pp"></div></div>
+   <div><div class="k">Price ÷ annual income</div><div class="big" id="pt"></div></div></div>
+   <div id="ev" class="note"></div></div>
+  <div class="card"><h2>Trends, indexed to 2009 = 100</h2>
+   <svg id="ch" viewBox="0 0 520 260"></svg>
+   <div class="note"><span class="dot" style="background:var(--ac)"></span>Resale price (selected region)
+   <span class="dot" style="background:var(--c2);margin-left:10px"></span>Land price
+   <span class="dot" style="background:var(--c3);margin-left:10px"></span>Population
+   <span class="dot" style="background:#d98b00;margin-left:10px"></span>Median household income
+   <span class="dot" style="background:#9b5de5;margin-left:10px"></span>Mean household income (from 2000)</div></div>
+  <div class="card"><h2>Correlation, 1990 → selected year</h2>
+   <div class="row"><div><div class="k">Price vs population</div><div class="big" id="r1"></div><div class="note" id="r1d"></div></div>
+   <div><div class="k">Price vs land price</div><div class="big" id="r2"></div><div class="note" id="r2d"></div></div>
+   <div><div class="k">Price vs median income</div><div class="big" id="r3"></div><div class="note" id="r3d"></div></div></div>
+   <div class="note">“Levels” r is inflated by shared upward trends; “YoY” r compares yearly changes and is the stronger test. Correlation is not causation.</div></div>
+ </div>
+</div>
+<div class="grid" style="margin-top:12px">
+ <div class="card"><h2>Forecast model · scenario inputs (2027–2030)</h2>
+  <div class="row"><div><div class="k">Income growth / yr <b id="vI"></b></div><input type="range" id="sI" min="0" max="8" step=".5" value="3.5"></div>
+  <div><div class="k">Population growth / yr <b id="vP"></b></div><input type="range" id="sP" min="-1" max="3" step=".25" value="1"></div>
+  <div><div class="k">Policy move in 2027 (hits 2028)</div><select id="sPol"><option value="0">Status quo</option><option value="1">New cooling round</option><option value="-1">Further easing</option></select></div></div>
+  <div class="row" style="margin-top:10px"><div><div class="k">2030 resale index</div><div class="big" id="f30"></div><div class="note" id="f30b"></div></div></div>
+  <div class="note" id="fit" style="margin-top:8px"></div>
+  <div class="note">Method: yearly log change in the resale index is regressed on income growth, population growth, last year’s price-to-income gap (mean reversion, constrained negative) and a cooling-policy dummy (lagged one year, since measures follow booms), then rolled forward under your scenario. Land follows the resale index. The band reflects residual noise only. With about 25 approximate observations, treat this as a sandbox, not a prediction.</div></div>
+ <div class="card"><h2>Data tables</h2><select id="tsel" aria-label="Choose table"></select><div class="tw" style="margin-top:8px"><table id="tb"></table></div><div class="note">Italic rows are estimates or projections. The selected year is highlighted.</div></div>
+</div>
+<div class="note" style="margin-top:12px">Data caveat: household income is SingStat (resident employed households, excl. employer CPF; 2010+ mean is estimated as 1.39× the median; 2024+ income is estimated). Price, land and population series are approximations built from public HDB, URA and SingStat trends, not official figures. Regions are simplified shapes, and regional prices are modelled as multiples of the national index. Years after 2026 come from the scenario model above and are not a forecast or advice. Replace the data tables at the top of the script with real figures for rigorous work.</div>
+
+<div class="bar">
+ <div class="top"><button id="play">▶ Play</button><div class="yr" id="yr"></div>
+ <input type="range" id="sl" min="1990" max="2030" step="1" value="2024" aria-label="Year"></div>
+ <div class="ticks" id="ticks"></div>
+</div>
+<script>
+const Y0=1990,Y1=2030,LAST=2026,FIT=2025;
+const interp=(k,y)=>{if(y<=k[0][0])return k[0][1];for(let i=1;i<k.length;i++)if(y<=k[i][0]){const[a,b]=[k[i-1],k[i]];return a[1]+(b[1]-a[1])*(y-a[0])/(b[0]-a[0])}return k[k.length-1][1]};
+const PR=[[1990,36],[1993,55],[1996,105],[1997,112],[1999,85],[2003,68],[2006,78],[2008,98],[2009,100],[2010,118],[2011,130],[2012,140],[2013,148],[2015,143],[2017,133],[2019,130],[2020,131],[2021,148],[2022,166],[2023,177],[2024,190],[2025,196],[2026,195]];
+const PO=[[1990,3.05],[1995,3.52],[2000,4.03],[2005,4.27],[2010,5.08],[2015,5.54],[2019,5.70],[2020,5.69],[2021,5.45],[2022,5.64],[2023,5.92],[2024,6.04],[2025,6.1],[2026,6.15]];
+const LD=[[1990,25],[1996,95],[1998,55],[2003,40],[2007,90],[2010,120],[2013,175],[2017,130],[2020,150],[2023,190],[2025,200],[2026,205]];
+const POL=[[1996,"May 1996: capital-gains-style holding-period tax on property"],[1997,"1997: Asian financial crisis"],[2008,"2008–09: Global financial crisis"],[2010,"2010: First cooling measures (LTV, seller stamp duty)"],[2011,"Dec 2011: Additional Buyer’s Stamp Duty (ABSD)"],[2013,"2013: TDSR and MSR debt limits"],[2018,"Jul 2018: Cooling round, tighter LTV and ABSD"],[2020,"2020: COVID delays BTO completions"],[2021,"2021: Resale surge as BTO supply lags demand"],[2022,"Sep 2022: 15-month wait-out for private owners buying resale HDB"],[2023,"Apr 2023: ABSD raised again (foreigners 60%)"],[2026,"28 Jul 2026: 15-month wait-out removed for private owners buying non-subsidised resale flats without an HDB loan (30 months still applies with an HDB loan or subsidies)"]];
+// Household income, resident employed households, S$/month excl. employer CPF (SingStat 2000-2023; 2024+ estimated)
+const MI=[[2000,4000],[2001,4141],[2002,4038],[2003,4050],[2004,4106],[2005,4345],[2006,4495],[2007,4883],[2008,5475],[2009,5398],[2010,5704],[2011,6286],[2012,6712],[2013,7000],[2014,7400],[2015,7624],[2016,7791],[2017,7956],[2018,8169],[2019,8333],[2020,8092],[2021,8421],[2022,8904],[2023,9646],[2024,10250],[2025,10660],[2026,11030]];
+const AK=[[2000,5456],[2001,5736],[2002,5572],[2003,5618],[2004,5761],[2005,6052],[2006,6280],[2007,6889],[2008,7752],[2009,7549]],RAT=1.39;
+const TIGHT={1996:1,2010:1,2011:1,2013:1,2018:1,2022:1,2023:1,2026:-1};
+const scn={inc:3.5,pop:1,pol:0},F={pr:{},po:{},inc:{},ld:{},sd:.05,b:[0,0,0,0,0],r2:0},lg=Math.log;
+function solve(A,b){const n=b.length;for(let i=0;i<n;i++){let p=i;for(let r=i+1;r<n;r++)if(Math.abs(A[r][i])>Math.abs(A[p][i]))p=r;[A[i],A[p]]=[A[p],A[i]];[b[i],b[p]]=[b[p],b[i]];for(let r=i+1;r<n;r++){const f=A[r][i]/A[i][i];for(let c=i;c<n;c++)A[r][c]-=f*A[i][c];b[r]-=f*b[i]}}const x=Array(n).fill(0);for(let i=n-1;i>=0;i--){let s=b[i];for(let c=i+1;c<n;c++)s-=A[i][c]*x[c];x[i]=s/A[i][i]}return x}
+// Error-correction style regression: dlnP = a + b1*dlnIncome + b2*dlnPop + b3*ln(P/Inc)[t-1] + b4*coolingYear
+function fit(){const X=[],Yv=[];for(let y=2001;y<=FIT;y++){const P0=interp(PR,y-1),I0=interp(MI,y-1);X.push([1,lg(interp(MI,y)/I0),lg(interp(PO,y)/interp(PO,y-1)),lg(P0/I0),TIGHT[y-1]||0]);Yv.push(lg(interp(PR,y)/P0))}
+ const k=5,A=[...Array(k)].map(()=>Array(k).fill(0)),B=Array(k).fill(0);X.forEach((r,i)=>{for(let a=0;a<k;a++){B[a]+=r[a]*Yv[i];for(let c=0;c<k;c++)A[a][c]+=r[a]*r[c]}});
+ const b=solve(A,B);if(b[3]>-.03){b[3]=-.05;b[0]=X.reduce((s,r,i)=>s+Yv[i]-r.slice(1).reduce((t,v,j)=>t+v*b[j+1],0),0)/X.length}
+ let ss=0,st=0;const m=Yv.reduce((s,v)=>s+v)/Yv.length;X.forEach((r,i)=>{const e=Yv[i]-r.reduce((s,v,j)=>s+v*b[j],0);ss+=e*e;st+=(Yv[i]-m)**2});F.b=b;F.sd=Math.sqrt(ss/(X.length-k));F.r2=1-ss/st}
+function sim(){let P=interp(PR,LAST),I=interp(MI,LAST),Po=interp(PO,LAST);const P0=P,L0=interp(LD,LAST),[a,b1,b2,b3,b4]=F.b;
+ for(let y=LAST+1;y<=Y1;y++){const gI=scn.inc/100,gP=scn.pop/100,d0=a+b1*lg(1+gI)+b2*lg(1+gP)+b3*lg(P/I)+b4*(y==LAST+1?TIGHT[LAST]||0:y==LAST+2?scn.pol:0),d=Math.max(-.12,Math.min(.12,d0));P*=Math.exp(d);I*=1+gI;Po*=1+gP;F.pr[y]=P;F.inc[y]=I;F.po[y]=Po;F.ld[y]=L0*P/P0}}
+const meanAt=y=>y<=2009?interp(AK,y):interp(MI,y)*RAT;
+const raw={pr:y=>y<=LAST?interp(PR,y):F.pr[y],po:y=>y<=LAST?interp(PO,y):F.po[y],ld:y=>y<=LAST?interp(LD,y):F.ld[y],mi:y=>y<=LAST?interp(MI,y):F.inc[y],ai:y=>y<=LAST?meanAt(y):F.inc[y]*RAT};
+const base={pr:100,po:interp(PO,2009),ld:interp(LD,2009)};
+const N={pr:y=>raw.pr(y),po:y=>raw.po(y)/base.po*100,ld:y=>raw.ld(y)/base.ld*100,mi:y=>y<2000?null:raw.mi(y)/interp(MI,2009)*100,ai:y=>y<2000?null:raw.ai(y)/meanAt(2009)*100};
+fit();sim();
+// regions: name, polygon, label xy, price multiple, beta, since
+const R=[
+["Jurong West / Tuas","50,270 110,195 210,200 230,300 160,335 95,320",150,265,.85,.9,1990],
+["Jurong East / Clementi","210,200 300,215 320,320 230,300",265,265,.98,1,1990],
+["Choa Chu Kang / Bukit Batok","110,195 190,150 290,150 300,215 210,200",225,185,.82,.9,1990],
+["Woodlands / Yishun","290,150 330,105 430,100 445,160 370,185 300,215",365,145,.8,.9,1990],
+["Bishan / Toa Payoh","300,215 370,185 440,215 440,260 420,260 330,270",385,230,1.2,1.05,1990],
+["Ang Mo Kio / Hougang","370,185 445,160 540,150 560,225 510,250 440,215",495,200,.95,.95,1990],
+["Sengkang / Punggol","540,150 600,105 680,130 660,200 600,230 560,225",610,170,.95,1.1,2000],
+["Tampines / Pasir Ris","560,225 600,230 660,200 740,225 740,265 660,290 580,280",655,250,1,1,1990],
+["Bedok / Marine Parade","580,280 660,290 640,335 560,330 540,300",600,310,1.05,1,1990],
+["Geylang / Kallang","510,250 560,225 580,280 540,300 560,330 510,335 470,300 440,260 440,215",510,295,1.15,1.05,1990],
+["Central / Downtown","420,260 440,260 470,300 510,335 450,345",458,310,1.35,1.15,1990],
+["Queenstown / Bukit Merah","330,270 420,260 450,345 390,355 320,320",375,315,1.3,1.1,1990]];
+let sel=4,year=2024,timer=null;
+const $=id=>document.getElementById(id),NS="http://www.w3.org/2000/svg";
+const MED=3.26; // k S$ per index point (2009 ~ S$326k)
+const ridx=(r,y)=>(100+(raw.pr(y)-100)*r[5])*r[4];
+const col=t=>{t=Math.max(0,Math.min(1,t));return t<.5?`hsl(${55-40*t*2} 85% ${80-25*t*2}%)`:`hsl(${15-30*(t-.5)*2} ${80-10*(t-.5)*2}% ${55-27*(t-.5)*2}%)`};
+const fmt=n=>Math.round(n*MED/1).toLocaleString('en-SG')+"k";
+const map=$("map");
+R.forEach((r,i)=>{const p=document.createElementNS(NS,"polygon");p.setAttribute("points",r[1]);p.setAttribute("class","reg");p.id="r"+i;p.onclick=()=>{sel=i;draw()};map.appendChild(p);
+const t=document.createElementNS(NS,"text");t.setAttribute("x",r[2]);t.setAttribute("y",r[3]);t.setAttribute("class","lbl");t.textContent=r[0].split(" / ")[0];t.id="t"+i;map.appendChild(t)});
+const ticks=$("ticks");POL.forEach(([y,txt])=>{const d=document.createElement("div");d.style.cssText=`position:absolute;left:${(y-Y0)/(Y1-Y0)*100}%;top:0;width:2px;height:12px;background:var(--ac);cursor:pointer`;d.title=txt;d.onclick=()=>{$("sl").value=y;year=y;draw()};ticks.appendChild(d)});
+const fl=document.createElement("div");fl.style.cssText=`position:absolute;left:${(LAST+1-Y0)/(Y1-Y0)*100}%;right:0;top:16px;font-size:10px;color:var(--mu);border-top:2px dashed var(--mu);padding-top:1px`;fl.textContent="projection";ticks.appendChild(fl);
+const pear=(a,b)=>{const n=a.length,ma=a.reduce((s,x)=>s+x)/n,mb=b.reduce((s,x)=>s+x)/n;let c=0,va=0,vb=0;for(let i=0;i<n;i++){c+=(a[i]-ma)*(b[i]-mb);va+=(a[i]-ma)**2;vb+=(b[i]-mb)**2}return c/Math.sqrt(va*vb)};
+function draw(){
+ const r=R[sel],all=R.map(x=>ridx(x,year)),mn=Math.min(...all),mx=Math.max(...all);
+ R.forEach((x,i)=>{const e=$("r"+i);e.style.fill=year<x[6]?"var(--bd)":col((all[i]-mn)/(mx-mn||1));e.classList.toggle("sel",i===sel)});
+ $("lmin").textContent="S$"+fmt(mn);$("lmax").textContent="S$"+fmt(mx);$("mapyr").textContent=year+(year>LAST?" (projected)":"");
+ $("yr").textContent=year;$("rn").innerHTML=r[0]+(year>LAST?'<span class="tag">projected</span>':"");
+ const v=ridx(r,year);
+ $("pv").textContent=year<r[6]?"n/a":"S$"+fmt(v);$("pi").textContent=year<r[6]?"–":(v/r[4]).toFixed(0);$("pp").textContent=raw.po(year).toFixed(2);const inc=year>=2000?raw.mi(year)*12:0;$("pt").textContent=inc&&year>=r[6]?(v*MED*1000/inc).toFixed(1)+"×":"–";
+ const ev=POL.filter(p=>p[0]<=year&&p[0]>year-3).map(p=>p[1]);$("ev").textContent=ev.length?"Policy and events: "+ev.join(" · "):"No major policy event in the last 3 years.";
+ // correlations
+ const ys=[];for(let y=Y0;y<=Math.min(year,Y1);y++)ys.push(y);
+ const P=ys.map(y=>ridx(r,y)),Po=ys.map(y=>raw.po(y)),L=ys.map(y=>raw.ld(y));
+ const g=a=>a.slice(1).map((v,i)=>v/a[i]-1);
+ if(ys.length>=6){const s=x=>(x>=0?"+":"")+x.toFixed(2);
+  $("r1").textContent=s(pear(P,Po));$("r1d").textContent="levels · YoY "+s(pear(g(P),g(Po)));
+  $("r2").textContent=s(pear(P,L));$("r2d").textContent="levels · YoY "+s(pear(g(P),g(L)))}else{$("r1").textContent=$("r2").textContent="–";$("r1d").textContent=$("r2d").textContent="select a later year"}
+ const y2=ys.filter(y=>y>=2000),Pi=y2.map(y=>ridx(r,y)),Ii=y2.map(y=>raw.mi(y));
+ if(y2.length>=6){const s=x=>(x>=0?"+":"")+x.toFixed(2);$("r3").textContent=s(pear(Pi,Ii));$("r3d").textContent="levels · YoY "+s(pear(g(Pi),g(Ii)))}else{$("r3").textContent="–";$("r3d").textContent="needs 2006+"}
+ chart(r);renderTable();model();
+}
+function chart(r){
+ const W=520,H=260,m={l:34,r:10,t:10,b:22},X=y=>m.l+(y-Y0)/(Y1-Y0)*(W-m.l-m.r);
+ const ser=[["var(--ac)",y=>ridx(r,y)/r[4]],["var(--c2)",N.ld],["var(--c3)",N.po],["#d98b00",N.mi],["#9b5de5",N.ai]];
+ const ymax=Math.ceil(Math.max(...[...Array(41)].map((_,i)=>Math.max(...ser.map(q=>q[1](Y0+i)||0))))/50)*50;
+ const Yy=v=>H-m.b-v/ymax*(H-m.t-m.b);
+ let s="";
+ for(let v=0;v<=ymax;v+=50)s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${Yy(v)}" y2="${Yy(v)}" stroke="var(--bd)"/><text x="${m.l-4}" y="${Yy(v)+3}" font-size="9" text-anchor="end" fill="var(--mu)">${v}</text>`;
+ for(let y=1990;y<=2030;y+=10)s+=`<text x="${X(y)}" y="${H-6}" font-size="9" text-anchor="middle" fill="var(--mu)">${y}</text>`;
+ s+=`<rect x="${X(LAST)}" y="${m.t}" width="${X(Y1)-X(LAST)}" height="${H-m.t-m.b}" fill="var(--mu)" opacity=".08"/>`;
+ // forecast cone
+ let up="",dn="";for(let y=LAST;y<=Y1;y++){const q=ridx(r,y)/r[4],w=Math.exp(1.28*F.sd*Math.sqrt(y-LAST));up+=`${X(y)},${Yy(q*w)} `;dn=`${X(y)},${Yy(q/w)} `+dn}
+ s+=`<polygon points="${up}${dn}" fill="var(--ac)" opacity=".15"/>`;
+ POL.forEach(p=>s+=`<line x1="${X(p[0])}" x2="${X(p[0])}" y1="${m.t}" y2="${H-m.b}" stroke="var(--ac)" stroke-dasharray="2 3" opacity=".45"><title>${p[1]}</title></line>`);
+ ser.forEach(([c,f])=>{let a="",b="";for(let y=Y0;y<=Y1;y++){const v=f(y);if(v==null)continue;const pt=`${X(y)},${Yy(v)} `;if(y<=LAST)a+=pt;if(y>=LAST)b+=pt}
+  s+=`<polyline points="${a}" fill="none" stroke="${c}" stroke-width="2"/><polyline points="${b}" fill="none" stroke="${c}" stroke-width="2" stroke-dasharray="4 3"/>`});
+ s+=`<line x1="${X(year)}" x2="${X(year)}" y1="${m.t}" y2="${H-m.b}" stroke="var(--tx)" stroke-width="1.5"/>`;
+ $("ch").innerHTML=s;
+}
+$("sl").oninput=e=>{year=+e.target.value;draw()};
+$("play").onclick=()=>{if(timer){clearInterval(timer);timer=null;$("play").textContent="▶ Play";return}
+ if(year>=Y1)year=Y0;$("play").textContent="❚❚ Pause";timer=setInterval(()=>{year++;$("sl").value=year;draw();if(year>=Y1){clearInterval(timer);timer=null;$("play").textContent="▶ Play"}},500)};
+const f1=v=>v==null?"–":(+v).toFixed(1),fi=v=>Math.round(v).toLocaleString('en-SG');
+const yrs=(fn,y0=Y0)=>()=>{const o=[];for(let y=y0;y<=Y1;y++)o.push([y,...fn(y)]);return o};
+const TB={
+"Resale price index (2009 = 100)":[["Year","Index","YoY %"],yrs(y=>[f1(raw.pr(y)),y>Y0?((raw.pr(y)/raw.pr(y-1)-1)*100).toFixed(1):"–"])],
+"Land price index (2009 = 100)":[["Year","Raw index","Rebased"],yrs(y=>[f1(raw.ld(y)),f1(N.ld(y))])],
+"Population (millions)":[["Year","Total","Rebased"],yrs(y=>[raw.po(y).toFixed(2),f1(N.po(y))])],
+"Household income (S$/month)":[["Year","Median","Mean","Price ÷ income"],yrs(y=>y<2000?["–","–","–"]:[fi(raw.mi(y)),fi(raw.ai(y)),(raw.pr(y)*MED*1000/(raw.mi(y)*12)).toFixed(1)+"×"])],
+"Model forecast and 80% band":[["Year","Central","Low","High"],yrs(y=>{const w=Math.exp(1.28*F.sd*Math.sqrt(y-LAST)),c=raw.pr(y);return[f1(c),f1(c/w),f1(c*w)]},LAST)],
+"Policy events":[["Year","Event"],()=>POL.map(p=>[p[0],p[1]])]};
+Object.keys(TB).forEach(k=>$("tsel").add(new Option(k,k)));$("tsel").onchange=renderTable;
+function renderTable(){const[c,rf]=TB[$("tsel").value],t=$("tb");t.className=c[1]=="Event"?"pol":"";t.innerHTML="<tr>"+c.map(h=>`<th>${h}</th>`).join("")+"</tr>"+rf().map(r=>`<tr class="${r[0]==year?"cur":""} ${r[0]>2024&&c[1]!="Event"?"est":""}">`+r.map(v=>`<td>${v}</td>`).join("")+"</tr>").join("")}
+function model(){const c=raw.pr(Y1),w=Math.exp(1.28*F.sd*Math.sqrt(Y1-LAST)),b=F.b;$("vI").textContent=scn.inc+"%";$("vP").textContent=scn.pop+"%";
+ $("f30").textContent=c.toFixed(0);$("f30b").textContent=`≈ S$${fmt(c)} median · 80% band ${(c/w).toFixed(0)}–${(c*w).toFixed(0)} · 2026 est. ${raw.pr(LAST).toFixed(0)}`;
+ $("fit").textContent=`Fit 2001–${FIT}: R² ${F.r2.toFixed(2)}, σ ${(F.sd*100).toFixed(1)}%/yr. Coefficients: income ${b[1].toFixed(2)}, population ${b[2].toFixed(2)}, mean-reversion ${b[3].toFixed(2)}, cooling year ${b[4].toFixed(3)}.`}
+["sI","sP","sPol"].forEach(i=>$(i).oninput=()=>{scn.inc=+$("sI").value;scn.pop=+$("sP").value;scn.pol=+$("sPol").value;sim();draw()});
+draw();
+</script></body></html>
