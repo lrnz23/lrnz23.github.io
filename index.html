@@ -558,17 +558,35 @@
         out.push({x:r.left-hr.left-24,y:r.top-hr.top-24,w:r.width+48,h:r.height+48}); });
       return out;
     }
+    function nameRects(){
+      var hr=hero.getBoundingClientRect(), out=[];
+      document.querySelectorAll('.giant span').forEach(function(sp){
+        var rg=document.createRange(); rg.selectNodeContents(sp); var r=rg.getBoundingClientRect();
+        var pad=Math.max(18,r.height*0.12); out.push({x:r.left-hr.left-pad,y:r.top-hr.top-pad*0.5,w:r.width+pad*2,h:r.height+pad});
+      });
+      return out;
+    }
+    function hits(list,x,y,size){ return list.some(function(a){ return x+size>a.x && x-size<a.x+a.w && y+size>a.y && y-size<a.y+a.h; }); }
     function layout(){
       var r=hero.getBoundingClientRect(); W=r.width; H=r.height;
       cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); ctx.setTransform(dpr,0,0,dpr,0,0);
       seed=11; items=[];
-      var avoid=avoidRects(), cell=W<600?92:118, cols=Math.max(3,Math.floor(W/cell)), rows=Math.max(3,Math.floor((H-70)/cell)), li=0;
+      var avoid=avoidRects(), names=nameRects(), cell=W<600?92:118, cols=Math.max(3,Math.floor(W/cell)), rows=Math.max(3,Math.floor((H-70)/cell)), li=0;
       for(var r2=0;r2<rows;r2++) for(var c=0;c<cols;c++){
-        if(rnd()<0.42) continue;
+        if(rnd()<0.34) continue;
         var x=(c+0.5)*(W/cols)+(rnd()-0.5)*cell*0.55, y=70+(r2+0.5)*((H-70)/rows)+(rnd()-0.5)*cell*0.5;
-        var big=rnd()<0.38, size=big?(W<600?30:42)+rnd()*14:(W<600?13:16)+rnd()*10;
-        var hit=avoid.some(function(a){ return x+size>a.x && x-size<a.x+a.w && y+size>a.y && y-size<a.y+a.h; });
-        if(hit) continue;
+        var BIG=(W<600?28:36)+rnd()*10, SMALL=(W<600?13:16)+rnd()*10;
+        if(hits(avoid,x,y,SMALL)) continue;
+        var behind=hits(names,x,y,SMALL), big=false, size=SMALL;
+        if(behind){
+          /* behind the name: only a sparse scatter of small, unlabelled shapes */
+          if(rnd()<0.72) continue;
+        } else if(rnd()<0.6 && !hits(avoid,x,y,BIG) && !hits(names,x,y,BIG)){
+          big=true; size=BIG;
+          /* keep labelled shapes apart so each one reads on its own */
+          var crowded=items.some(function(o){ var dx=o.hx-x, dy=o.hy-y, need=(o.label?o.s+BIG:BIG+o.s*0.6)+18; return dx*dx+dy*dy<need*need; });
+          if(crowded){ big=false; size=SMALL; }
+        }
         var label=big?LABELS[(li++)%LABELS.length]:null;
         var pal=label?colorFor(label):(rnd()<0.12?FOREST:PAL[Math.floor(rnd()*PAL.length)]);
         items.push({hx:x,hy:y,x:x,y:y-H-80-rnd()*200,vx:0,vy:0,s:size,shape:SH[Math.floor(rnd()*SH.length)],fill:pal[0],ink:pal[1],
@@ -621,7 +639,19 @@
     try{ new IntersectionObserver(function(es){ running=es[0].isIntersecting; }).observe(hero); }catch(e){}
     var rt, lastW=0; window.addEventListener('resize',function(){ clearTimeout(rt); rt=setTimeout(function(){ if(Math.abs(window.innerWidth-lastW)<2) return; lastW=window.innerWidth; layout(); items.forEach(function(it){ it.x=it.hx; it.y=it.hy; }); if(reduce) draw(performance.now()); },150); });
     lastW=window.innerWidth; layout();
-    if(document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ layout(); });
+    /* re-measure once the display font has loaded (the name changes size), and whenever the name resizes */
+    function relayout(){
+      var fresh=performance.now()-t0<1500;
+      layout();
+      if(fresh && !reduce){ t0=performance.now(); }
+      else { items.forEach(function(it){ it.x=it.hx; it.y=it.hy; }); if(reduce) draw(performance.now()); }
+    }
+    var gt, giant=document.querySelector('.giant');
+    try{ new ResizeObserver(function(){ clearTimeout(gt); gt=setTimeout(relayout,80); }).observe(giant); }catch(e){}
+    try{
+      Promise.all([document.fonts.load("200 100px Fraunces"), document.fonts.load("italic 300 100px Fraunces")]).then(function(){ setTimeout(relayout,50); });
+      document.fonts.addEventListener('loadingdone',function(){ clearTimeout(gt); gt=setTimeout(relayout,80); });
+    }catch(e){}
     if(!reduce) requestAnimationFrame(loop);
   })();
 
